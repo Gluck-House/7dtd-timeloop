@@ -29,6 +29,7 @@ jobs:
       AWS_DEFAULT_REGION: eu-west-2
       DOTNET_NOLOGO: "true"
       DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+      DOTNET_INSTALL_DIR: ${{ github.workspace }}/.dotnet
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -37,6 +38,10 @@ jobs:
         uses: actions/setup-dotnet@v5
         with:
           dotnet-version: 8.0.x
+
+      - name: Add local .NET install to PATH
+        shell: bash
+        run: echo "${DOTNET_INSTALL_DIR}" >> "$GITHUB_PATH"
 
       - name: Load pinned 7DTD version
         shell: bash
