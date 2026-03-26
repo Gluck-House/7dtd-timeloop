@@ -32,12 +32,7 @@ If you build from this repo, `./build.sh` creates:
 
 - `TimeLoop/build/TimeLoop/` containing the unpacked mod files
 
-The GitHub Actions workflow packages that output into:
-
-- `TimeLoop.zip`
-- `TimeLoop.tar.gz`
-
-Both CI archives contain a top-level `timeloop/` folder ready to upload or extract into `Mods/`.
+The GitHub Actions workflow uploads `TimeLoop/build/TimeLoop/` as a build artifact.
 
 ## Quick Start
 
@@ -147,7 +142,7 @@ dotnet build TimeLoop/TimeLoop.sln -p:OutputPath="/path/to/7DaysToDie/Mods/TimeL
 
 - `deps/` is local-only and ignored by git except for its README.
 - `.cache/` and `.tools/` are local helper directories created by the download/build workflow.
-- `build.sh` only compiles the mod locally; archive packaging is handled in CI.
+- `build.sh` only compiles the mod locally.
 
 ## Attribution
 
