@@ -18,7 +18,7 @@ namespace TimeLoop {
             Harmony.CreateAndPatchAll(Assembly.GetExecutingAssembly());
         }
 
-        public static string GetAbsolutePath(string relativeFilePath) {
+        public static string GetAbsolutePath(string relativeFilePath, bool requireExists = true) {
             var gameDirectory = Directory.GetParent(Assembly.GetExecutingAssembly().Location)?.FullName;
             if (gameDirectory == null) {
                 Log.Exception(new Exception("Game directory could not be found."));
@@ -26,6 +26,9 @@ namespace TimeLoop {
             }
 
             var filePath = Path.Combine(gameDirectory, relativeFilePath);
+            if (!requireExists)
+                return filePath;
+
             if (File.Exists(filePath))
                 return filePath;
 

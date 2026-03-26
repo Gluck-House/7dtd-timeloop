@@ -10,7 +10,7 @@ namespace TimeLoop.Managers {
         private DateTime _lastModified = new DateTime(1970, 1, 1);
 
         private ConfigManager(string fileLocation) {
-            _absoluteFilePath = Main.GetAbsolutePath(fileLocation);
+            _absoluteFilePath = Main.GetAbsolutePath(fileLocation, requireExists: false);
             Config = LoadConfig();
         }
 
@@ -34,7 +34,8 @@ namespace TimeLoop.Managers {
                 XmlSerializerWrapper.ToXml(_absoluteFilePath, configModel);
             }
             finally {
-                _lastModified = new FileInfo(_absoluteFilePath).LastWriteTime;
+                if (File.Exists(_absoluteFilePath))
+                    _lastModified = new FileInfo(_absoluteFilePath).LastWriteTime;
                 Log.Out("[TimeLoop] Configuration loaded.");
             }
 

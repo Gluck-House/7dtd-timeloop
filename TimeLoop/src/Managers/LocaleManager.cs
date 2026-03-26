@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using static SimpleJson2.SimpleJson2;
+using System.Text.RegularExpressions;
 
 namespace TimeLoop.Managers {
     public class LocaleManager {
@@ -53,7 +53,7 @@ namespace TimeLoop.Managers {
 
                 LoadedLocale = Path.GetFileNameWithoutExtension(localePath);
                 using var stream = new StreamReader(localePath);
-                return DeserializeObject<Dictionary<string, string>>(stream.ReadToEnd());
+                return ParseLocaleDictionary(stream.ReadToEnd());
             }
             catch (Exception e) {
                 Log.Error("[TimeLoop] Failed to load localization file. {0}", e.Message);
@@ -70,6 +70,23 @@ namespace TimeLoop.Managers {
             if (File.Exists(path)) return path;
             Log.Error("[TimeLoop] Failed to load locale file for '{0}'", locale);
             return null;
+        }
+
+        private static Dictionary<string, string> ParseLocaleDictionary(string json) {
+            var localeDict = new Dictionary<string, string>();
+            var trimmed = json.Trim().TrimStart('\uFEFF');
+
+            foreach (Match match in Regex.Matches(trimmed,
+                         "\"((?:\\\\.|[^\"\\\\])*)\"\\s*:\\s*\"((?:\\\\.|[^\"\\\\])*)\"")) {
+                var key = Regex.Unescape(match.Groups[1].Value);
+                var value = Regex.Unescape(match.Groups[2].Value);
+                localeDict[key] = value;
+            }
+
+            if (localeDict.Count == 0)
+                throw new FormatException("Locale file does not contain any string entries.");
+
+            return localeDict;
         }
 
         public string Localize(string key) {
