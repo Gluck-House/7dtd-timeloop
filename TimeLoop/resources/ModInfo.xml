@@ -5,6 +5,6 @@
     <DisplayName value="TimeLoop"/>
     <Description
             value="A 7 Days to Die mod that resets the day if not enough players or authorized players are online"/>
-    <Author value="leehil, yuyui.moe"/>
-    <Website value="https://github.com/yuyuimoe/7dtdTimeLoop"/>
+    <Author value="leehil, yuyui.moe, Gluck-House"/>
+    <Website value="https://github.com/Gluck-House/7dtdTimeLoop"/>
 </ModInfo>

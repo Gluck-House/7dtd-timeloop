@@ -140,6 +140,20 @@ dotnet build TimeLoop/TimeLoop.sln -p:OutputPath="/path/to/7DaysToDie/Mods/TimeL
 - `.cache/` and `.tools/` are local helper directories created by the download/build workflow.
 - `build.sh` requires `zip` in addition to the .NET SDK.
 
+## Attribution
+
+TimeLoop was originally created by leehil and first published at:
+
+- https://github.com/lehimebe/7dtdTimeLoop
+
+It was later forked and maintained at:
+
+- https://github.com/yuyuimoe/7dtdTimeLoop
+
+This repository continues maintenance from that lineage at:
+
+- https://github.com/Gluck-House/7dtdTimeLoop
+
 ## License
 
 This repository is licensed under the terms in [LICENSE](LICENSE).
