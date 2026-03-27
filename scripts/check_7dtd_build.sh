@@ -8,7 +8,7 @@ steamcmd_dir="${STEAMCMD_DIR:-$tools_dir/steamcmd}"
 steamcmd_url="${STEAMCMD_URL:-https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz}"
 steamcmd_mode="${STEAMCMD_MODE:-auto}"
 container_runtime="${CONTAINER_RUNTIME:-docker}"
-docker_image="${DOCKER_IMAGE:-ghcr.io/parkervcp/installers:debian}"
+docker_image="${DOCKER_IMAGE:-cm2network/steamcmd:root}"
 steam_user="${STEAM_USER:-anonymous}"
 steam_pass="${STEAM_PASS:-}"
 steam_guard="${STEAM_GUARD:-}"
@@ -106,30 +106,36 @@ run_steamcmd_docker() {
     can_use_container_runtime || fail "Container runtime '$container_runtime' is not available"
 
     "$container_runtime" run --rm \
+        --entrypoint bash \
         -e "APP_ID=$app_id" \
         -e "STEAM_USER=$steam_user" \
         -e "STEAM_PASS=$steam_pass" \
         -e "STEAM_GUARD=$steam_guard" \
         "$docker_image" \
-        bash -lc '
+        -lc '
             set -euo pipefail
-            cd /tmp
-            curl -fsSL -o steamcmd.tar.gz https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz
-            mkdir steamcmd
-            tar -xzf steamcmd.tar.gz -C steamcmd
-            cd steamcmd
+            if command -v steamcmd >/dev/null 2>&1; then
+                steamcmd_bin="$(command -v steamcmd)"
+            elif [ -x /home/steam/steamcmd/steamcmd.sh ]; then
+                steamcmd_bin=/home/steam/steamcmd/steamcmd.sh
+            elif [ -x /steamcmd/steamcmd.sh ]; then
+                steamcmd_bin=/steamcmd/steamcmd.sh
+            else
+                echo "steamcmd binary not found in container image" >&2
+                exit 1
+            fi
 
             if [[ "$STEAM_USER" == "anonymous" ]]; then
-                ./steamcmd.sh +login anonymous +app_info_update 1 +app_info_print "$APP_ID" +quit
+                "$steamcmd_bin" +login anonymous +app_info_update 1 +app_info_print "$APP_ID" +quit
                 exit 0
             fi
 
             if [[ -n "${STEAM_GUARD:-}" ]]; then
-                ./steamcmd.sh +set_steam_guard_code "$STEAM_GUARD" +login "$STEAM_USER" "$STEAM_PASS" +app_info_update 1 +app_info_print "$APP_ID" +quit
+                "$steamcmd_bin" +set_steam_guard_code "$STEAM_GUARD" +login "$STEAM_USER" "$STEAM_PASS" +app_info_update 1 +app_info_print "$APP_ID" +quit
                 exit 0
             fi
 
-            ./steamcmd.sh +login "$STEAM_USER" "$STEAM_PASS" +app_info_update 1 +app_info_print "$APP_ID" +quit
+            "$steamcmd_bin" +login "$STEAM_USER" "$STEAM_PASS" +app_info_update 1 +app_info_print "$APP_ID" +quit
         '
 }
 

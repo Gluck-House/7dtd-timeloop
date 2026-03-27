@@ -29,10 +29,35 @@ jobs:
       RUNS_ON_RUNNER_NAME: ""
       AWS_REGION: eu-west-2
       AWS_DEFAULT_REGION: eu-west-2
+      STEAMCMD_DOCKER_IMAGE: cm2network/steamcmd:root
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
+
+      - name: Cache SteamCMD container image
+        id: cache-steamcmd-image
+        uses: runs-on/cache@v4
+        with:
+          path: .cache/docker/steamcmd-image.tar
+          key: steamcmd-image-v1|${{ runner.os }}|cm2network-steamcmd-root
+          restore-keys: |
+            steamcmd-image-v1|${{ runner.os }}
+
+      - name: Load or pull SteamCMD container image
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          cache_path=".cache/docker/steamcmd-image.tar"
+          mkdir -p "$(dirname "$cache_path")"
+
+          if [ -f "$cache_path" ]; then
+            docker load -i "$cache_path"
+          else
+            docker pull "${STEAMCMD_DOCKER_IMAGE}"
+            docker save "${STEAMCMD_DOCKER_IMAGE}" -o "$cache_path"
+          fi
 
       - name: Check pinned 7DTD build id
         id: check
@@ -41,7 +66,7 @@ jobs:
           set -euo pipefail
 
           set +e
-          ./scripts/check_7dtd_build.sh
+          STEAMCMD_MODE=docker DOCKER_IMAGE="${STEAMCMD_DOCKER_IMAGE}" ./scripts/check_7dtd_build.sh
           status=$?
           set -e
 
@@ -81,7 +106,7 @@ jobs:
       - name: Verify updated version file
         if: steps.check.outputs.outdated == 'true'
         shell: bash
-        run: ./scripts/check_7dtd_build.sh
+        run: STEAMCMD_MODE=docker DOCKER_IMAGE="${STEAMCMD_DOCKER_IMAGE}" ./scripts/check_7dtd_build.sh
 
       - name: Configure git author
         if: github.ref == 'refs/heads/main' && steps.check.outputs.outdated == 'true'

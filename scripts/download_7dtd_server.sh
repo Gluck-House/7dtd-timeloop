@@ -16,7 +16,7 @@ branch="${BRANCH:-}"
 validate="${VALIDATE:-0}"
 steamcmd_mode="${STEAMCMD_MODE:-auto}"
 container_runtime="${CONTAINER_RUNTIME:-docker}"
-docker_image="${DOCKER_IMAGE:-ghcr.io/parkervcp/installers:debian}"
+docker_image="${DOCKER_IMAGE:-cm2network/steamcmd:root}"
 
 required_files=(
     "0Harmony.dll"
@@ -163,6 +163,7 @@ run_steamcmd_docker() {
 
     local cmd=(
         "$container_runtime" run --rm
+        --entrypoint bash
         -v "$server_dir:/mnt/server"
     )
 
@@ -180,22 +181,27 @@ run_steamcmd_docker() {
 
     cmd+=(
         "$docker_image"
-        bash -lc
+        -lc
         "set -euo pipefail
+        if command -v steamcmd >/dev/null 2>&1; then
+            steamcmd_bin=\$(command -v steamcmd)
+        elif [ -x /home/steam/steamcmd/steamcmd.sh ]; then
+            steamcmd_bin=/home/steam/steamcmd/steamcmd.sh
+        elif [ -x /steamcmd/steamcmd.sh ]; then
+            steamcmd_bin=/steamcmd/steamcmd.sh
+        else
+            echo 'steamcmd binary not found in container image' >&2
+            exit 1
+        fi
         if [[ \"\${STEAM_USER:-}\" == \"\" ]] || [[ \"\${STEAM_PASS:-}\" == \"\" ]]; then
             STEAM_USER=anonymous
             STEAM_PASS=
             STEAM_AUTH=
         fi
-        cd /tmp
-        mkdir -p /mnt/server/steamcmd
-        curl -sSL -o steamcmd.tar.gz https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz
-        tar -xzf steamcmd.tar.gz -C /mnt/server/steamcmd
         mkdir -p /mnt/server/steamapps
-        cd /mnt/server/steamcmd
         chown -R root:root /mnt
         export HOME=/mnt/server
-        ./steamcmd.sh +force_install_dir /mnt/server +login \"\$STEAM_USER\" \"\$STEAM_PASS\" \"\${STEAM_AUTH:-}\" +app_update \"$app_id\" \$( [[ -z \"\${BRANCH:-}\" ]] || printf %s \"-beta \$BRANCH\" ) validate +quit"
+        \"\$steamcmd_bin\" +force_install_dir /mnt/server +login \"\$STEAM_USER\" \"\$STEAM_PASS\" \"\${STEAM_AUTH:-}\" +app_update \"$app_id\" \$( [[ -z \"\${BRANCH:-}\" ]] || printf %s \"-beta \$BRANCH\" ) validate +quit"
     )
 
     log "Downloading 7 Days to Die dedicated server into $server_dir with $container_runtime image $docker_image"
