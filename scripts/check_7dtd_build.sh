@@ -5,6 +5,7 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 version_file="${VERSION_FILE:-$repo_root/.github/7dtd-version.env}"
 tools_dir="${TOOLS_DIR:-$repo_root/.tools}"
 steamcmd_dir="${STEAMCMD_DIR:-$tools_dir/steamcmd}"
+steam_state_dir="${STEAM_STATE_DIR:-$repo_root/.cache/steamcmd}"
 steamcmd_url="${STEAMCMD_URL:-https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz}"
 steamcmd_mode="${STEAMCMD_MODE:-auto}"
 container_runtime="${CONTAINER_RUNTIME:-docker}"
@@ -105,8 +106,11 @@ run_steamcmd_local() {
 run_steamcmd_docker() {
     can_use_container_runtime || fail "Container runtime '$container_runtime' is not available"
 
+    mkdir -p "$steam_state_dir"
+
     "$container_runtime" run --rm \
         --entrypoint bash \
+        -v "$steam_state_dir:/mnt/steam" \
         -e "APP_ID=$app_id" \
         -e "STEAM_USER=$steam_user" \
         -e "STEAM_PASS=$steam_pass" \
@@ -124,6 +128,9 @@ run_steamcmd_docker() {
                 echo "steamcmd binary not found in container image" >&2
                 exit 1
             fi
+
+            mkdir -p /mnt/steam
+            export HOME=/mnt/steam
 
             if [[ "$STEAM_USER" == "anonymous" ]]; then
                 "$steamcmd_bin" +login anonymous +app_info_update 1 +app_info_print "$APP_ID" +quit

@@ -71,6 +71,14 @@ jobs:
           restore-keys: |
             steamcmd-image-v1|${{ runner.os }}
 
+      - name: Cache SteamCMD state
+        uses: runs-on/cache@v4
+        with:
+          path: .cache/steamcmd/
+          key: steamcmd-state-v1|${{ runner.os }}
+          restore-keys: |
+            steamcmd-state-v1|${{ runner.os }}
+
       - name: Load or pull SteamCMD container image
         shell: bash
         run: |
@@ -121,7 +129,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          STEAMCMD_MODE=docker DOCKER_IMAGE="${STEAMCMD_DOCKER_IMAGE}" APP_ID="${APP_ID}" BRANCH="${TIMELOOP_BRANCH}" ./scripts/download_7dtd_server.sh
+          STEAMCMD_MODE=docker DOCKER_IMAGE="${STEAMCMD_DOCKER_IMAGE}" STEAM_STATE_DIR="${{ github.workspace }}/.cache/steamcmd" APP_ID="${APP_ID}" BRANCH="${TIMELOOP_BRANCH}" ./scripts/download_7dtd_server.sh
 
           manifest_path=".cache/7dtd-dedicated-server/steamapps/appmanifest_${APP_ID}.acf"
           if [ ! -f "$manifest_path" ]; then

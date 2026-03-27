@@ -165,6 +165,7 @@ run_steamcmd_docker() {
         "$container_runtime" run --rm
         --entrypoint bash
         -v "$server_dir:/mnt/server"
+        -v "$steam_state_dir:/mnt/steam"
     )
 
     if [ "$steam_user" != "anonymous" ]; then
@@ -199,8 +200,9 @@ run_steamcmd_docker() {
             STEAM_AUTH=
         fi
         mkdir -p /mnt/server/steamapps
+        mkdir -p /mnt/steam
         chown -R root:root /mnt
-        export HOME=/mnt/server
+        export HOME=/mnt/steam
         \"\$steamcmd_bin\" +force_install_dir /mnt/server +login \"\$STEAM_USER\" \"\$STEAM_PASS\" \"\${STEAM_AUTH:-}\" +app_update \"$app_id\" \$( [[ -z \"\${BRANCH:-}\" ]] || printf %s \"-beta \$BRANCH\" ) validate +quit"
     )
 
