@@ -176,13 +176,18 @@ extract_branch_build_id() {
             exit
         }
 
-        in_branches && match($0, /^[[:space:]]*"([^"]+)"[[:space:]]*$/, matches) {
-            current_branch = matches[1]
+        in_branches && $0 ~ /^[[:space:]]*"[^"]+"[[:space:]]*$/ {
+            current_branch = $0
+            sub(/^[[:space:]]*"/, "", current_branch)
+            sub(/"[[:space:]]*$/, "", current_branch)
             next
         }
 
-        in_branches && current_branch == target_branch && match($0, /^[[:space:]]*"buildid"[[:space:]]*"([0-9]+)"/, matches) {
-            print matches[1]
+        in_branches && current_branch == target_branch && $0 ~ /^[[:space:]]*"buildid"[[:space:]]*"/ {
+            build_id = $0
+            sub(/.*"buildid"[[:space:]]*"/, "", build_id)
+            sub(/".*$/, "", build_id)
+            print build_id
             exit
         }
     ' "$source_file"
@@ -201,8 +206,11 @@ list_branches() {
             exit
         }
 
-        in_branches && match($0, /^[[:space:]]*"([^"]+)"[[:space:]]*$/, matches) {
-            print matches[1]
+        in_branches && $0 ~ /^[[:space:]]*"[^"]+"[[:space:]]*$/ {
+            branch_name = $0
+            sub(/^[[:space:]]*"/, "", branch_name)
+            sub(/"[[:space:]]*$/, "", branch_name)
+            print branch_name
         }
     ' "$source_file"
 }
