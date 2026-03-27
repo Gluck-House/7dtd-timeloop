@@ -117,6 +117,7 @@ See [deps/README.md](deps/README.md) for the supported ways to populate that fol
 
 The CI workflow pins the game dependency set using the committed values in `.github/7dtd-version.env`.
 If you want CI to move to a different 7 Days to Die build, update that file in the same pull request.
+To check whether the pinned `BUILD_ID` is still current for the configured branch, run `./scripts/check_7dtd_build.sh`.
 
 ### Build
 

@@ -1,0 +1,247 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+version_file="${VERSION_FILE:-$repo_root/.github/7dtd-version.env}"
+tools_dir="${TOOLS_DIR:-$repo_root/.tools}"
+steamcmd_dir="${STEAMCMD_DIR:-$tools_dir/steamcmd}"
+steamcmd_url="${STEAMCMD_URL:-https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz}"
+steamcmd_mode="${STEAMCMD_MODE:-auto}"
+container_runtime="${CONTAINER_RUNTIME:-docker}"
+docker_image="${DOCKER_IMAGE:-ghcr.io/parkervcp/installers:debian}"
+steam_user="${STEAM_USER:-anonymous}"
+steam_pass="${STEAM_PASS:-}"
+steam_guard="${STEAM_GUARD:-}"
+
+log() {
+    printf '[check_7dtd_build] %s\n' "$*"
+}
+
+fail() {
+    printf '[check_7dtd_build] %s\n' "$*" >&2
+    exit 2
+}
+
+write_github_output() {
+    [ -n "${GITHUB_OUTPUT:-}" ] || return 0
+
+    {
+        printf 'app_id=%s\n' "$app_id"
+        printf 'branch_name=%s\n' "$branch_name"
+        printf 'pinned_build_id=%s\n' "$expected_build_id"
+        printf 'latest_build_id=%s\n' "$latest_build_id"
+        printf 'outdated=%s\n' "$outdated"
+    } >> "$GITHUB_OUTPUT"
+}
+
+ensure_command() {
+    command -v "$1" >/dev/null 2>&1 || fail "Missing required command: $1"
+}
+
+require_steamcmd_runtime() {
+    if [ ! -e /lib/ld-linux.so.2 ] && [ ! -e /lib32/ld-linux.so.2 ] && [ ! -e /lib/i386-linux-gnu/ld-linux.so.2 ]; then
+        fail "steamcmd requires 32-bit glibc loader (ld-linux.so.2). Install your distro's 32-bit glibc/Steam runtime support, or rerun with STEAMCMD_MODE=docker."
+    fi
+}
+
+can_use_local_steamcmd() {
+    [ -x "$steamcmd_dir/steamcmd.sh" ] || return 1
+    [ -e /lib/ld-linux.so.2 ] || [ -e /lib32/ld-linux.so.2 ] || [ -e /lib/i386-linux-gnu/ld-linux.so.2 ]
+}
+
+can_use_container_runtime() {
+    command -v "$container_runtime" >/dev/null 2>&1 || return 1
+    "$container_runtime" info >/dev/null 2>&1
+}
+
+install_steamcmd() {
+    if [ -x "$steamcmd_dir/steamcmd.sh" ]; then
+        return
+    fi
+
+    ensure_command curl
+    ensure_command tar
+
+    log "Installing local steamcmd into $steamcmd_dir"
+    mkdir -p "$steamcmd_dir"
+
+    local archive
+    archive="$(mktemp)"
+    trap "rm -f '$archive'" RETURN
+    curl -fsSL "$steamcmd_url" -o "$archive"
+    tar -xzf "$archive" -C "$steamcmd_dir"
+}
+
+append_login_args() {
+    local -n target_ref="$1"
+
+    if [ "$steam_user" = "anonymous" ]; then
+        target_ref+=(+login anonymous)
+        return
+    fi
+
+    if [ -z "$steam_pass" ]; then
+        fail "STEAM_PASS is required when STEAM_USER is not anonymous"
+    fi
+
+    if [ -n "$steam_guard" ]; then
+        target_ref+=(+set_steam_guard_code "$steam_guard")
+    fi
+
+    target_ref+=(+login "$steam_user" "$steam_pass")
+}
+
+run_steamcmd_local() {
+    install_steamcmd
+    require_steamcmd_runtime
+
+    local -a cmd=("$steamcmd_dir/steamcmd.sh")
+    append_login_args cmd
+    cmd+=(+app_info_update 1 +app_info_print "$app_id" +quit)
+
+    "${cmd[@]}"
+}
+
+run_steamcmd_docker() {
+    can_use_container_runtime || fail "Container runtime '$container_runtime' is not available"
+
+    "$container_runtime" run --rm \
+        -e "APP_ID=$app_id" \
+        -e "STEAM_USER=$steam_user" \
+        -e "STEAM_PASS=$steam_pass" \
+        -e "STEAM_GUARD=$steam_guard" \
+        "$docker_image" \
+        bash -lc '
+            set -euo pipefail
+            cd /tmp
+            curl -fsSL -o steamcmd.tar.gz https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz
+            mkdir steamcmd
+            tar -xzf steamcmd.tar.gz -C steamcmd
+            cd steamcmd
+
+            if [[ "$STEAM_USER" == "anonymous" ]]; then
+                ./steamcmd.sh +login anonymous +app_info_update 1 +app_info_print "$APP_ID" +quit
+                exit 0
+            fi
+
+            if [[ -n "${STEAM_GUARD:-}" ]]; then
+                ./steamcmd.sh +set_steam_guard_code "$STEAM_GUARD" +login "$STEAM_USER" "$STEAM_PASS" +app_info_update 1 +app_info_print "$APP_ID" +quit
+                exit 0
+            fi
+
+            ./steamcmd.sh +login "$STEAM_USER" "$STEAM_PASS" +app_info_update 1 +app_info_print "$APP_ID" +quit
+        '
+}
+
+query_app_info() {
+    case "$steamcmd_mode" in
+        local)
+            run_steamcmd_local
+            ;;
+        docker)
+            run_steamcmd_docker
+            ;;
+        auto)
+            if can_use_local_steamcmd; then
+                run_steamcmd_local
+            elif can_use_container_runtime; then
+                run_steamcmd_docker
+            else
+                run_steamcmd_local
+            fi
+            ;;
+        *)
+            fail "Unsupported STEAMCMD_MODE: $steamcmd_mode (expected auto, local, or docker)"
+            ;;
+    esac
+}
+
+extract_branch_build_id() {
+    local source_file="$1"
+    local target_branch="$2"
+
+    awk -v target_branch="$target_branch" '
+        /"branches"[[:space:]]*$/ {
+            in_branches = 1
+            next
+        }
+
+        in_branches && /"privatebranches"[[:space:]]/ {
+            exit
+        }
+
+        in_branches && match($0, /^[[:space:]]*"([^"]+)"[[:space:]]*$/, matches) {
+            current_branch = matches[1]
+            next
+        }
+
+        in_branches && current_branch == target_branch && match($0, /^[[:space:]]*"buildid"[[:space:]]*"([0-9]+)"/, matches) {
+            print matches[1]
+            exit
+        }
+    ' "$source_file"
+}
+
+list_branches() {
+    local source_file="$1"
+
+    awk '
+        /"branches"[[:space:]]*$/ {
+            in_branches = 1
+            next
+        }
+
+        in_branches && /"privatebranches"[[:space:]]/ {
+            exit
+        }
+
+        in_branches && match($0, /^[[:space:]]*"([^"]+)"[[:space:]]*$/, matches) {
+            print matches[1]
+        }
+    ' "$source_file"
+}
+
+main() {
+    [ -f "$version_file" ] || fail "Version file not found: $version_file"
+
+    # shellcheck disable=SC1090
+    source "$version_file"
+
+    app_id="${APP_ID:-}"
+    branch_name="${BRANCH:-public}"
+    expected_build_id="${BUILD_ID:-}"
+
+    [ -n "$app_id" ] || fail "APP_ID is missing in $version_file"
+    [ -n "$expected_build_id" ] || fail "BUILD_ID is missing in $version_file"
+
+    local query_output
+    query_output="$(mktemp)"
+    trap "rm -f '$query_output'" EXIT
+
+    log "Checking app $app_id branch $branch_name against $version_file"
+    query_app_info | sed -E 's/\x1B\[[0-9;]*[[:alpha:]]//g' > "$query_output"
+
+    latest_build_id="$(extract_branch_build_id "$query_output" "$branch_name")"
+    if [ -z "$latest_build_id" ]; then
+        available_branches="$(list_branches "$query_output" | paste -sd ', ' -)"
+        fail "Could not find branch '$branch_name' for app $app_id. Available branches: ${available_branches:-none}"
+    fi
+
+    printf 'Pinned build id: %s\n' "$expected_build_id"
+    printf 'Latest build id: %s\n' "$latest_build_id"
+    printf 'Branch: %s\n' "$branch_name"
+
+    if [ "$latest_build_id" = "$expected_build_id" ]; then
+        outdated=false
+        write_github_output
+        log "Pinned build id is current"
+        return 0
+    fi
+
+    outdated=true
+    write_github_output
+    log "Pinned build id is stale"
+    return 1
+}
+
+main "$@"
