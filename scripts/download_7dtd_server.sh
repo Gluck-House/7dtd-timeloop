@@ -17,7 +17,7 @@ branch="${BRANCH:-}"
 validate="${VALIDATE:-0}"
 steamcmd_mode="${STEAMCMD_MODE:-auto}"
 container_runtime="${CONTAINER_RUNTIME:-docker}"
-docker_image="${DOCKER_IMAGE:-cm2network/steamcmd:root}"
+docker_image="${DOCKER_IMAGE:-ghcr.io/parkervcp/installers:debian}"
 
 required_files=(
     "0Harmony.dll"

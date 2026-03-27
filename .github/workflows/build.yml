@@ -30,7 +30,7 @@ jobs:
       DOTNET_NOLOGO: "true"
       DOTNET_CLI_TELEMETRY_OPTOUT: "1"
       DOTNET_INSTALL_DIR: ${{ github.workspace }}/.dotnet
-      STEAMCMD_DOCKER_IMAGE: cm2network/steamcmd:root
+      STEAMCMD_DOCKER_IMAGE: ghcr.io/parkervcp/installers:debian
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -66,9 +66,9 @@ jobs:
         uses: runs-on/cache@v4
         with:
           path: .cache/docker/steamcmd-image.tar
-          key: steamcmd-image-v1|${{ runner.os }}|cm2network-steamcmd-root
+          key: steamcmd-image-v2|${{ runner.os }}|parkervcp-installers-debian
           restore-keys: |
-            steamcmd-image-v1|${{ runner.os }}
+            steamcmd-image-v2|${{ runner.os }}
 
       - name: Cache SteamCMD state
         uses: runs-on/cache@v4
