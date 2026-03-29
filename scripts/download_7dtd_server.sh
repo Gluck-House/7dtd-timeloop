@@ -17,7 +17,7 @@ branch="${BRANCH:-}"
 validate="${VALIDATE:-0}"
 steamcmd_mode="${STEAMCMD_MODE:-auto}"
 container_runtime="${CONTAINER_RUNTIME:-docker}"
-docker_image="${DOCKER_IMAGE:-ghcr.io/parkervcp/installers:debian}"
+docker_image="${DOCKER_IMAGE:-debian:bookworm-slim}"
 
 required_files=(
     "0Harmony.dll"
@@ -103,7 +103,7 @@ build_login_args() {
 build_app_update_args() {
     local cmd="+app_update $app_id"
 
-    if [ -n "$branch" ]; then
+    if [ -n "$branch" ] && [ "$branch" != "public" ]; then
         cmd="$cmd -beta $branch"
     fi
 
@@ -169,6 +169,11 @@ run_steamcmd_docker() {
         --entrypoint bash
         -v "$server_dir:/mnt/server"
         -v "$steam_state_dir:/mnt/steam"
+        -e "APP_ID=$app_id"
+        -e "HOST_UID=$(id -u)"
+        -e "HOST_GID=$(id -g)"
+        -e "VALIDATE=$validate"
+        -e "STEAMCMD_URL=$steamcmd_url"
     )
 
     if [ "$steam_user" != "anonymous" ]; then
@@ -179,7 +184,7 @@ run_steamcmd_docker() {
         cmd+=(-e "STEAM_AUTH=$steam_guard")
     fi
 
-    if [ -n "$branch" ]; then
+    if [ -n "$branch" ] && [ "$branch" != "public" ]; then
         cmd+=(-e "BRANCH=$branch")
     fi
 
@@ -187,6 +192,23 @@ run_steamcmd_docker() {
         "$docker_image"
         -lc
         "set -euo pipefail
+        needs_steamcmd_deps=0
+        if ! command -v curl >/dev/null 2>&1 || ! command -v tar >/dev/null 2>&1; then
+            needs_steamcmd_deps=1
+        fi
+        if [ ! -e /lib/ld-linux.so.2 ] && [ ! -e /lib32/ld-linux.so.2 ] && [ ! -e /lib/i386-linux-gnu/ld-linux.so.2 ]; then
+            needs_steamcmd_deps=1
+        fi
+        if [ \"\$needs_steamcmd_deps\" -eq 1 ]; then
+            if ! command -v apt-get >/dev/null 2>&1; then
+                echo \"Container image is missing required SteamCMD dependencies and does not provide apt-get\" >&2
+                exit 1
+            fi
+            export DEBIAN_FRONTEND=noninteractive
+            apt-get update
+            apt-get install -y --no-install-recommends ca-certificates curl tar lib32gcc-s1 lib32stdc++6
+            rm -rf /var/lib/apt/lists/*
+        fi
         if command -v steamcmd >/dev/null 2>&1; then
             steamcmd_bin=\$(command -v steamcmd)
         elif [ -x /home/steam/steamcmd/steamcmd.sh ]; then
@@ -194,8 +216,11 @@ run_steamcmd_docker() {
         elif [ -x /steamcmd/steamcmd.sh ]; then
             steamcmd_bin=/steamcmd/steamcmd.sh
         else
-            echo 'steamcmd binary not found in container image' >&2
-            exit 1
+            cd /tmp
+            mkdir -p steamcmd-bootstrap
+            curl -fsSL -o steamcmd.tar.gz \"\$STEAMCMD_URL\"
+            tar -xzf steamcmd.tar.gz -C steamcmd-bootstrap
+            steamcmd_bin=/tmp/steamcmd-bootstrap/steamcmd.sh
         fi
         if [[ \"\${STEAM_USER:-}\" == \"\" ]] || [[ \"\${STEAM_PASS:-}\" == \"\" ]]; then
             STEAM_USER=anonymous
@@ -206,7 +231,29 @@ run_steamcmd_docker() {
         mkdir -p /mnt/steam
         chown -R root:root /mnt
         export HOME=/mnt/steam
-        \"\$steamcmd_bin\" +force_install_dir /mnt/server +login \"\$STEAM_USER\" \"\$STEAM_PASS\" \"\${STEAM_AUTH:-}\" +app_update \"$app_id\" \$( [[ -z \"\${BRANCH:-}\" ]] || printf %s \"-beta \$BRANCH\" ) validate +quit"
+        cmd=(\"\$steamcmd_bin\" +force_install_dir /mnt/server)
+        if [[ \"\${STEAM_USER:-anonymous}\" == \"anonymous\" ]]; then
+            cmd+=(+login anonymous)
+        else
+            if [[ -z \"\${STEAM_PASS:-}\" ]]; then
+                echo \"STEAM_PASS is required when STEAM_USER is not anonymous\" >&2
+                exit 1
+            fi
+            if [[ -n \"\${STEAM_AUTH:-}\" ]]; then
+                cmd+=(+set_steam_guard_code \"\$STEAM_AUTH\")
+            fi
+            cmd+=(+login \"\$STEAM_USER\" \"\$STEAM_PASS\")
+        fi
+        cmd+=(+app_update \"$APP_ID\")
+        if [[ -n \"\${BRANCH:-}\" ]]; then
+            cmd+=(-beta \"\$BRANCH\")
+        fi
+        if [[ \"\${VALIDATE:-0}\" == \"1\" ]]; then
+            cmd+=(validate)
+        fi
+        cmd+=(+quit)
+        \"\${cmd[@]}\"
+        chown -R \"\$HOST_UID:\$HOST_GID\" /mnt/server /mnt/steam"
     )
 
     log "Downloading 7 Days to Die dedicated server into $server_dir with $container_runtime image $docker_image"

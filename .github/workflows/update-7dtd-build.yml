@@ -29,7 +29,7 @@ jobs:
       RUNS_ON_RUNNER_NAME: ""
       AWS_REGION: eu-west-2
       AWS_DEFAULT_REGION: eu-west-2
-      STEAMCMD_DOCKER_IMAGE: ghcr.io/parkervcp/installers:debian
+      STEAMCMD_DOCKER_IMAGE: debian:bookworm-slim
     steps:
       - uses: actions/checkout@v6
         with:
@@ -39,9 +39,9 @@ jobs:
         uses: runs-on/cache@v4
         with:
           path: .cache/docker/steamcmd-image.tar
-          key: steamcmd-image-v2|${{ runner.os }}|parkervcp-installers-debian
+          key: steamcmd-image-v3|${{ runner.os }}|debian-bookworm-slim
           restore-keys: |
-            steamcmd-image-v2|${{ runner.os }}
+            steamcmd-image-v3|${{ runner.os }}
 
       - name: Cache SteamCMD state
         uses: runs-on/cache@v4

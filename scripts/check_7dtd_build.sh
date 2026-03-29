@@ -10,7 +10,7 @@ steam_state_dir="${STEAM_STATE_DIR:-$repo_root/.cache/steamcmd}"
 steamcmd_url="${STEAMCMD_URL:-https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz}"
 steamcmd_mode="${STEAMCMD_MODE:-auto}"
 container_runtime="${CONTAINER_RUNTIME:-docker}"
-docker_image="${DOCKER_IMAGE:-ghcr.io/parkervcp/installers:debian}"
+docker_image="${DOCKER_IMAGE:-debian:bookworm-slim}"
 steam_user="${STEAM_USER:-anonymous}"
 steam_pass="${STEAM_PASS:-}"
 steam_guard="${STEAM_GUARD:-}"
@@ -114,12 +114,36 @@ run_steamcmd_docker() {
         --entrypoint bash \
         -v "$steam_state_dir:/mnt/steam" \
         -e "APP_ID=$app_id" \
+        -e "HOST_UID=$(id -u)" \
+        -e "HOST_GID=$(id -g)" \
         -e "STEAM_USER=$steam_user" \
         -e "STEAM_PASS=$steam_pass" \
         -e "STEAM_GUARD=$steam_guard" \
+        -e "STEAMCMD_URL=$steamcmd_url" \
         "$docker_image" \
         -lc '
             set -euo pipefail
+
+            needs_steamcmd_deps=0
+            if ! command -v curl >/dev/null 2>&1 || ! command -v tar >/dev/null 2>&1; then
+                needs_steamcmd_deps=1
+            fi
+            if [ ! -e /lib/ld-linux.so.2 ] && [ ! -e /lib32/ld-linux.so.2 ] && [ ! -e /lib/i386-linux-gnu/ld-linux.so.2 ]; then
+                needs_steamcmd_deps=1
+            fi
+
+            if [ "$needs_steamcmd_deps" -eq 1 ]; then
+                if ! command -v apt-get >/dev/null 2>&1; then
+                    echo "Container image is missing required SteamCMD dependencies and does not provide apt-get" >&2
+                    exit 1
+                fi
+
+                export DEBIAN_FRONTEND=noninteractive
+                apt-get update
+                apt-get install -y --no-install-recommends ca-certificates curl tar lib32gcc-s1 lib32stdc++6
+                rm -rf /var/lib/apt/lists/*
+            fi
+
             if command -v steamcmd >/dev/null 2>&1; then
                 steamcmd_bin="$(command -v steamcmd)"
             elif [ -x /home/steam/steamcmd/steamcmd.sh ]; then
@@ -127,8 +151,11 @@ run_steamcmd_docker() {
             elif [ -x /steamcmd/steamcmd.sh ]; then
                 steamcmd_bin=/steamcmd/steamcmd.sh
             else
-                echo "steamcmd binary not found in container image" >&2
-                exit 1
+                cd /tmp
+                mkdir -p steamcmd-bootstrap
+                curl -fsSL -o steamcmd.tar.gz "$STEAMCMD_URL"
+                tar -xzf steamcmd.tar.gz -C steamcmd-bootstrap
+                steamcmd_bin=/tmp/steamcmd-bootstrap/steamcmd.sh
             fi
 
             mkdir -p /mnt/steam
@@ -136,15 +163,18 @@ run_steamcmd_docker() {
 
             if [[ "$STEAM_USER" == "anonymous" ]]; then
                 "$steamcmd_bin" +login anonymous +app_info_update 1 +app_info_print "$APP_ID" +quit
+                chown -R "$HOST_UID:$HOST_GID" /mnt/steam
                 exit 0
             fi
 
             if [[ -n "${STEAM_GUARD:-}" ]]; then
                 "$steamcmd_bin" +set_steam_guard_code "$STEAM_GUARD" +login "$STEAM_USER" "$STEAM_PASS" +app_info_update 1 +app_info_print "$APP_ID" +quit
+                chown -R "$HOST_UID:$HOST_GID" /mnt/steam
                 exit 0
             fi
 
             "$steamcmd_bin" +login "$STEAM_USER" "$STEAM_PASS" +app_info_update 1 +app_info_print "$APP_ID" +quit
+            chown -R "$HOST_UID:$HOST_GID" /mnt/steam
         '
 }
 
