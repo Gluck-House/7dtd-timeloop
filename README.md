@@ -157,7 +157,7 @@ It was later forked and maintained at:
 
 This repository continues maintenance from that lineage at:
 
-- https://github.com/Gluck-House/7dtdTimeLoop
+- https://github.com/Gluck-House/7dtd-timeloop
 
 ## License
 
