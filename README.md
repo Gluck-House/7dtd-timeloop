@@ -118,6 +118,7 @@ See [deps/README.md](deps/README.md) for the supported ways to populate that fol
 The CI workflow pins the game dependency set using the committed values in `.github/7dtd-version.env` and downloads the matching shared dependency bundle for that exact build.
 If you want CI to move to a different 7 Days to Die build, update that file in the same pull request.
 The normal update loop runs centrally from `7dtd-mod-infra`, which publishes the matching dependency bundle and opens a PR when this pin should move forward.
+When a GitHub release is created, `release.yml` builds the mod from that same pinned dependency bundle and uploads a zip asset for direct download.
 
 ### Build
 
