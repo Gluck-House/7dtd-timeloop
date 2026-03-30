@@ -13,7 +13,6 @@ steam_user="${STEAM_USER:-anonymous}"
 steam_pass="${STEAM_PASS:-}"
 steam_guard="${STEAM_GUARD:-}"
 app_id="${APP_ID:-294420}"
-branch="${BRANCH:-}"
 validate="${VALIDATE:-0}"
 steamcmd_mode="${STEAMCMD_MODE:-auto}"
 container_runtime="${CONTAINER_RUNTIME:-docker}"
@@ -103,10 +102,6 @@ build_login_args() {
 build_app_update_args() {
     local cmd="+app_update $app_id"
 
-    if [ -n "$branch" ] && [ "$branch" != "public" ]; then
-        cmd="$cmd -beta $branch"
-    fi
-
     if [ "$validate" = "1" ]; then
         cmd="$cmd validate"
     fi
@@ -135,7 +130,7 @@ execute_steamcmd_command() {
 
     local status=$?
     if [ "$steam_user" = "anonymous" ]; then
-        fail "steamcmd could not install app $app_id with anonymous login. Re-run with STEAM_USER and STEAM_PASS if anonymous access is blocked for your environment or branch."
+        fail "steamcmd could not install app $app_id with anonymous login. Re-run with STEAM_USER and STEAM_PASS if anonymous access is blocked for your environment."
     fi
 
     exit "$status"
@@ -182,10 +177,6 @@ run_steamcmd_docker() {
 
     if [ -n "$steam_guard" ]; then
         cmd+=(-e "STEAM_AUTH=$steam_guard")
-    fi
-
-    if [ -n "$branch" ] && [ "$branch" != "public" ]; then
-        cmd+=(-e "BRANCH=$branch")
     fi
 
     cmd+=(
@@ -245,9 +236,6 @@ run_steamcmd_docker() {
             cmd+=(+login \"\$STEAM_USER\" \"\$STEAM_PASS\")
         fi
         cmd+=(+app_update \"$APP_ID\")
-        if [[ -n \"\${BRANCH:-}\" ]]; then
-            cmd+=(-beta \"\$BRANCH\")
-        fi
         if [[ \"\${VALIDATE:-0}\" == \"1\" ]]; then
             cmd+=(validate)
         fi

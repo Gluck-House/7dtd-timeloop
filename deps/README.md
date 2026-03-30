@@ -38,7 +38,6 @@ That script will:
 Useful overrides:
 
 ```bash
-BRANCH=latest_experimental ./scripts/download_7dtd_server.sh
 STEAM_USER=your_user STEAM_PASS=your_pass ./scripts/download_7dtd_server.sh
 SERVER_DIR=/path/to/existing/server ./scripts/download_7dtd_server.sh
 DEPS_DIR=/custom/deps/path ./scripts/download_7dtd_server.sh
@@ -48,4 +47,4 @@ DEPS_DIR=/custom/deps/path ./scripts/download_7dtd_server.sh
 
 - Docker mode avoids needing a host `steamcmd` install.
 - Host `steamcmd` on Linux may require 32-bit glibc/Steam runtime support.
-- CI pins the expected game build in `.github/7dtd-version.env` and caches `deps/` against that file.
+- CI pins the expected game build in `.github/7dtd-version.env`, downloads a matching shared dependency bundle for that exact build, and receives pin bump PRs from the central `7dtd-mod-infra` update workflow.
