@@ -6,6 +6,7 @@ The current repository state builds against 7 Days to Die V2.5 dedicated server 
 
 ## What it does
 
+<<<<<<< before updating
 TimeLoop supports four operating modes:
 
 - `always`: always loop the day
@@ -95,6 +96,18 @@ The mod exposes these server console commands:
   Alias: `timeloop_locale`
 
 Omitting arguments on most commands prints the current state.
+=======
+- `TimeLoop/`: solution, project file, source code, and packaged mod resources
+- `TimeLoop/src/`: the mod source tree
+- `deps/`: local-only 7 Days to Die assemblies used for compilation
+- `scripts/`: local developer helpers such as downloading pinned 7DTD dependencies
+- `.github/7dtd-version.env`: the pinned 7DTD build used by CI
+- `.github/release-please-config.json`: release automation settings for the mod repository
+- `.github/release-please-manifest.json`: the current released mod version tracked by `release-please`
+- `build.sh`: the standard local build entry point
+- `CHANGELOG.md`: managed release notes for the mod repository
+- `version.txt`: the repo-local mod version managed by `release-please`
+>>>>>>> after updating
 
 ## Building
 
@@ -142,6 +155,7 @@ dotnet build TimeLoop/TimeLoop.sln -p:OutputPath="/path/to/7DaysToDie/Mods/TimeL
 
 ## Development Notes
 
+<<<<<<< before updating
 - `deps/` is local-only and ignored by git except for its README.
 - `.cache/` and `.tools/` are local helper directories created by the download/build workflow.
 - `build.sh` only compiles the mod locally.
@@ -149,6 +163,20 @@ dotnet build TimeLoop/TimeLoop.sln -p:OutputPath="/path/to/7DaysToDie/Mods/TimeL
 ## Attribution
 
 TimeLoop was originally created by leehil and first published at:
+=======
+- `build.yml` downloads the matching shared dependency bundle for the pinned build, builds the project, and uploads a ready-to-install artifact containing a top-level `TimeLoop/` folder.
+- `pr-title.yml` validates pull request titles against Conventional Commit formatting.
+- `release-please.yml` maintains the long-running release PR and creates GitHub releases from merged release PRs.
+- `release.yml` builds the project from the same pinned dependency bundle and attaches a zip containing `TimeLoop/` to the GitHub release.
+- the normal pinned-build update loop runs centrally from `7dtd-mod-infra`, which publishes the matching dependency bundle and opens a PR when `.github/7dtd-version.env` should move forward
+
+## Releases
+
+- Pull request titles should use Conventional Commit formatting because squash merges drive release automation.
+- `release-please` manages `CHANGELOG.md`, `version.txt`, and the mod version in `TimeLoop/resources/ModInfo.xml`.
+- Mod release tags use the `v<version>` format.
+- `chore` entries appear in the generated changelog under `Maintenance`, but they do not trigger a release PR by themselves.
+>>>>>>> after updating
 
 - https://github.com/lehimebe/7dtdTimeLoop
 

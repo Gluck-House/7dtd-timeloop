@@ -18,3 +18,13 @@ STEAMCMD_MODE=docker ./scripts/download_7dtd_server.sh
 - CI uploads an artifact with a top-level `timeloop/` folder for direct use in `Mods/`.
 - Keep changes portable. Avoid absolute filesystem paths and machine-specific assumptions in docs or scripts.
 - The project currently builds with .NET SDK 8 while targeting `netstandard2.1` for the game-facing assembly.
+<<<<<<< before updating
+=======
+- This repository was generated from `Gluck-House/7dtd-mod-template`.
+
+## Pull Request Titles
+
+- Use Conventional Commit PR titles so squash merges produce clean release history.
+- Typical examples: `feat: add reusable workflow wrapper`, `fix: correct dependency bundle path`, `chore(template): refresh Copier scaffold`.
+- PR titles are validated in CI with `pr-title.yml`.
+>>>>>>> after updating
