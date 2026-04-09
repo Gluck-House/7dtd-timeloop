@@ -1,5 +1,12 @@
 # Changelog
 
+## [5.0.1](https://github.com/Gluck-House/7dtd-timeloop/compare/v5.0.0...v5.0.1) (2026-04-09)
+
+
+### Bug Fixes
+
+* remove runtime dependency on System.Text.Json ([5daecad](https://github.com/Gluck-House/7dtd-timeloop/commit/5daecad5ac05bed1cc51724ffd6b862c5a32df28))
+
 ## [5.0.0](https://github.com/Gluck-House/7dtd-timeloop/compare/v4.0.3...v5.0.0) (2026-04-09)
 
 
